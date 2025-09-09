@@ -1,0 +1,15 @@
+{
+  "id": "GaetanoPack",
+  "name": "Gaetatro",
+  "author": [
+    "dense bamboo"
+  ],
+  "description": "Adds Gaetano to Balatro",
+  "prefix": "gaet",
+  "main_file": "gaetano_pack.lua",
+  "badge_colour": "8A6F3B",
+  "dependencies": [
+    "Steamodded (>=1.0.0~BETA-0827)"
+  ],
+  "version": "1.0.0"
+}

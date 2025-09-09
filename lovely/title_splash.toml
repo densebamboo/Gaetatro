@@ -1,0 +1,142 @@
+[manifest]
+version = '1.0.0'
+priority = 1000
+
+[[patches]]
+[patches.pattern]
+target = 'game.lua'
+pattern = 'replace_card.states.visible = false'
+position = 'before'
+match_indent = true
+payload = '''
+do
+  if not replace_card then return end
+
+  local P = G and G.P_CENTERS
+  local C = P and ((P.Joker and (P.Joker['super_mustard_gaetano'] or P.Joker['j_gaet_super_mustard_gaetano']))
+            or P['super_mustard_gaetano']
+            or P['j_gaet_super_mustard_gaetano'])
+
+  -- 1) Force Joker ability/identity
+  pcall(function() if C and replace_card.set_ability then replace_card:set_ability(C) end end)
+  replace_card.ability = replace_card.ability or {}
+  replace_card.ability.set = 'Joker'
+  replace_card.config = replace_card.config or {}
+  replace_card.config.center = C
+
+  -- 2) Kill "playing card" state so Ace can't respawn
+  replace_card.playing_card = false
+  if replace_card.set_base then pcall(function() replace_card:set_base(nil, nil) end) end
+  replace_card.base, replace_card.value, replace_card.suit = nil, nil, nil
+
+  -- 3) Remove the current 'front' (Ace indices live here) and rebuild sprites
+  pcall(function()
+    if replace_card.children and replace_card.children.front and replace_card.children.front.remove then
+      replace_card.children.front:remove()
+      replace_card.children.front = nil
+    end
+  end)
+  pcall(function() if replace_card.set_sprites then replace_card:set_sprites() end end)
+
+  -- Apply Polychrome edition *via engine helper* (prevents blank card)
+  pcall(function()
+    if replace_card.set_edition then
+      replace_card:set_edition({polychrome = true}, true)
+    else
+      replace_card.edition = {polychrome = true}
+      if replace_card.set_sprites then replace_card:set_sprites() end
+    end
+  end)
+
+  -- 4) Ensure the Joker center draws
+  pcall(function()
+    if replace_card.children then
+      if replace_card.children.center and replace_card.children.center.states then replace_card.children.center.states.visible = true end
+      -- If a new 'front' was created and it's still a playing-card front, hide it
+      if replace_card.children.front and replace_card.children.front.states then
+        -- Heuristic: if we're a Joker, prefer center-only; hide front to avoid Ace overlay
+        replace_card.children.front.states.visible = false
+      end
+    end
+  end)
+
+  -- 5) For ~1s, keep enforcing Joker state and hiding any reappearing front
+  local frames, max_frames = 0, 60
+  if G and G.E_MANAGER and Event then
+    G.E_MANAGER:add_event(Event({func=function()
+      frames = frames + 1
+      replace_card.playing_card = false
+      if replace_card.children then
+        if replace_card.children.center and replace_card.children.center.states then replace_card.children.center.states.visible = true end
+        if replace_card.children.front  and replace_card.children.front.states  then replace_card.children.front.states.visible = false end
+      end
+      return frames >= max_frames
+    end}))
+  end
+end
+'''
+
+[[patches]]
+[patches.pattern]
+target = 'functions/state_splash.lua'
+pattern = 'replace_card.states.visible = false'
+position = 'before'
+match_indent = true
+payload = '''
+do
+  if not replace_card then return end
+
+  local P = G and G.P_CENTERS
+  local C = P and ((P.Joker and (P.Joker['super_mustard_gaetano'] or P.Joker['j_gaet_super_mustard_gaetano']))
+            or P['super_mustard_gaetano']
+            or P['j_gaet_super_mustard_gaetano'])
+
+  pcall(function() if C and replace_card.set_ability then replace_card:set_ability(C) end end)
+  replace_card.ability = replace_card.ability or {}
+  replace_card.ability.set = 'Joker'
+  replace_card.config = replace_card.config or {}
+  replace_card.config.center = C
+
+  replace_card.playing_card = false
+  if replace_card.set_base then pcall(function() replace_card:set_base(nil, nil) end) end
+  replace_card.base, replace_card.value, replace_card.suit = nil, nil, nil
+
+  pcall(function()
+    if replace_card.children and replace_card.children.front and replace_card.children.front.remove then
+      replace_card.children.front:remove()
+      replace_card.children.front = nil
+    end
+  end)
+  pcall(function() if replace_card.set_sprites then replace_card:set_sprites() end end)
+
+  -- Apply Polychrome edition *via engine helper* (prevents blank card)
+  pcall(function()
+    if replace_card.set_edition then
+      replace_card:set_edition({polychrome = true}, true)
+    else
+      replace_card.edition = {polychrome = true}
+      if replace_card.set_sprites then replace_card:set_sprites() end
+    end
+  end)
+
+  pcall(function()
+    if replace_card.children then
+      if replace_card.children.center and replace_card.children.center.states then replace_card.children.center.states.visible = true end
+      if replace_card.children.front  and replace_card.children.front.states  then replace_card.children.front.states.visible = false end
+    end
+  end)
+
+  local frames, max_frames = 0, 60
+  if G and G.E_MANAGER and Event then
+    G.E_MANAGER:add_event(Event({func=function()
+      frames = frames + 1
+      replace_card.playing_card = false
+      if replace_card.children then
+        if replace_card.children.center and replace_card.children.center.states then replace_card.children.center.states.visible = true end
+        if replace_card.children.front  and replace_card.children.front.states  then replace_card.children.front.states.visible = false end
+      end
+      return frames >= max_frames
+    end}))
+  end
+end
+'''
