@@ -213,6 +213,27 @@ local function enqueue_evolve_post_scoring(card)
         if type(play_sound) == "function" then
           pcall(play_sound, SETTINGS.evolve_sound, 1.0, 0.95)
         end
+        -- Ensure sell value / cost updates to Super's values
+        do
+          local new_cost = nil
+          if super then
+            -- prefer explicit 'sell' if present on center, else fall back to 'cost'
+            new_cost = super.sell or super.cost
+          end
+          if new_cost then
+            -- Try official setter if available
+            if type(card.set_cost) == "function" then
+              pcall(function() card:set_cost(new_cost, true) end)
+            end
+            -- Also update common fields used by UI/engine
+            card.cost = new_cost
+            if card.ability then
+              card.ability.cost = new_cost
+              card.ability.sell = new_cost
+            end
+          end
+        end
+
       else
         _log(card, "enqueue_evolve: ERROR during swap: "..tostring(err))
       end

@@ -57,8 +57,6 @@ local J = SMODS.Joker{
   eternal_compat = true,
   perishable_compat = false,
 
-  unlocked = true,
-  discovered = true,
   atlas = "SuperGaetanoAtlas",
   pos   = { x = 0, y = 0 },
 
@@ -80,25 +78,6 @@ local function ensure_aliases()
   if not primary and G and G.P_CENTERS and G.P_CENTERS.Joker then
     primary = G.P_CENTERS.Joker['super_mustard_gaetano']
   end
-
-function ensure_unlocked_discovered_super()
-  local keys = { 'super_mustard_gaetano', 'j_gaet_super_mustard_gaetano' }
-  local regs = {}
-  if SMODS and SMODS.CENTERS and SMODS.CENTERS.Joker then table.insert(regs, SMODS.CENTERS.Joker) end
-  if G and G.P_CENTERS and G.P_CENTERS.Joker then table.insert(regs, G.P_CENTERS.Joker) end
-  for _, reg in ipairs(regs) do
-    for _, k in ipairs(keys) do
-      local c = reg[k]
-      if c then
-        c.unlocked = true
-        c.discovered = true
-      end
-
-
--- Ensure this Joker starts unlocked and discovered in both registries
-    end
-  end
-end
   if not primary then return end
   SMODS.CENTERS.Joker['j_gaet_super_mustard_gaetano'] = primary
   if G and G.P_CENTERS then
@@ -108,9 +87,8 @@ end
 end
 
 ensure_aliases()
-ensure_unlocked_discovered_super()
-function J:give()  ensure_aliases(); ensure_unlocked_discovered_super() end
-function J:load()  ensure_aliases(); ensure_unlocked_discovered_super() end
+function J:give()  ensure_aliases() end
+function J:load()  ensure_aliases() end
 function J:reset() end
 
 function J:calculate(card, ctx)
@@ -153,6 +131,69 @@ function J:calculate(card, ctx)
       end
     }))
   end
+end
+
+-- JokerDisplay: ensure X2 shows on top, X1.5 below, without changing global config
+J.joker_display_def = function(JD)
+  local top_to_bottom = JokerDisplay and JokerDisplay.config and JokerDisplay.config.top_to_bottom
+  local text_nodes
+  local extra_rows
+
+  if top_to_bottom then
+    -- JD stacks top→bottom: first row is 'text'
+    text_nodes = {
+      { ref_table = "card.joker_display_values", ref_value = "x2_count", retrigger_type = "x_mult" },
+      { text = "x", scale = 0.35 },
+      { border_nodes = { { text = "X" }, { text = "2" } } },
+    }
+    extra_rows = {{
+      { ref_table = "card.joker_display_values", ref_value = "x15_count", retrigger_type = "x_mult" },
+      { text = "x", scale = 0.35 },
+      { border_nodes = { { text = "X" }, { text = "1.5" } } },
+    }}
+  else
+    -- JD stacks bottom→top: visual top is 'extra', so flip the content
+    text_nodes = {
+      { ref_table = "card.joker_display_values", ref_value = "x15_count", retrigger_type = "x_mult" },
+      { text = "x", scale = 0.35 },
+      { border_nodes = { { text = "X" }, { text = "1.5" } } },
+    }
+    extra_rows = {{
+      { ref_table = "card.joker_display_values", ref_value = "x2_count", retrigger_type = "x_mult" },
+      { text = "x", scale = 0.35 },
+      { border_nodes = { { text = "X" }, { text = "2" } } },
+    }}
+  end
+
+  return {
+    text = text_nodes,
+    text_config = { colour = G.C.UI.TEXT },
+    extra = extra_rows,
+    reminder_text = {
+      { text = "(", colour = G.C.UI.TEXT_DARK, scale = 0.3 },
+      { text = "Gold", colour = G.C.ORANGE, scale = 0.3 },
+      { text = ")", colour = G.C.UI.TEXT_DARK, scale = 0.3 },
+    },
+    calc_function = function(card)
+      local x2, x15 = 0, 0
+      local _, _, scoring_hand = JokerDisplay.evaluate_hand()
+      local selected = {}
+      if scoring_hand then
+        for _, c in ipairs(scoring_hand) do
+          if is_gold(c) then x2 = x2 + 1 end
+          selected[c] = true
+        end
+      end
+      if G and G.hand and G.hand.cards then
+        for _, c in ipairs(G.hand.cards) do
+          if is_gold(c) and not selected[c] then x15 = x15 + 1 end
+        end
+      end
+      card.joker_display_values.x2_count = x2
+      card.joker_display_values.x15_count = x15
+    end
+  
+}
 end
 
 function J:loc_vars() return {} end
